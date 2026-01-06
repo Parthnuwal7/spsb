@@ -13,17 +13,17 @@ TLDRs:
 
 ```mermaid
 flowchart TD
-    A[User Input] --> B[extract_move<br/>(intent parser)]
-    B --> C[validate_move<br/>(tool)]
+    A[User Input] --> B["extract_move (intent parser)"]
+    B --> C["validate_move (tool)"]
 
-    C -->|Invalid input| D[update_game_state<br/>(round wasted)]
-    D --> E[Format response to user]
+    C -->|Invalid input| D["waste_round (tool)"]
+    D --> E[Format response]
     E --> F[Next round or game end]
 
-    C -->|Valid input| G[select_bot_move<br/>(helper)]
-    G --> H[resolve_round<br/>(tool)]
-    H --> I[update_game_state<br/>(tool)]
-    I --> J[Format response to user]
+    C -->|Valid input| G["select_bot_move (helper)"]
+    G --> H["resolve_round (tool)"]
+    H --> I["update_game_state (tool)"]
+    I --> J[Format response]
     J --> F
 ```
 
