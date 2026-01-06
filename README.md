@@ -16,7 +16,7 @@ flowchart TD
     A[User Input] --> B["extract_move (intent parser)"]
     B --> C["validate_move (tool)"]
 
-    C -->|Invalid input| D["update_game_state (tool) \n (round wasted)"]
+    C -->|Invalid input| D["update_game_state (tool)  (round wasted)"]
     D --> E[Format response]
     E --> F[Next round or game end]
 
