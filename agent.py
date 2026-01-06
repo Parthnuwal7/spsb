@@ -15,6 +15,7 @@ from game_state import GameState, create_new_game
 from tools.validate_move import validate_move, TOOL_SCHEMA as VALIDATE_SCHEMA
 from tools.resolve_round import resolve_round, TOOL_SCHEMA as RESOLVE_SCHEMA
 from tools.update_game_state import update_game_state, TOOL_SCHEMA as UPDATE_SCHEMA
+from tools.waste_round import waste_round, TOOL_SCHEMA as WASTE_ROUND_SCHEMA
 from helpers.bot_move import select_bot_move
 from helpers.intent_parser import extract_move_offline, is_rules_request
 from logger import get_logger, GameLogger, LogLevel
@@ -28,6 +29,7 @@ ADK_TOOL_SCHEMAS = [
     VALIDATE_SCHEMA,
     RESOLVE_SCHEMA,
     UPDATE_SCHEMA,
+    WASTE_ROUND_SCHEMA,
 ]
 
 
@@ -40,7 +42,7 @@ RULES_TEXT = """🎮 **Rock-Paper-Scissors-Bomb** (Best of 3)
 • Rock beats Scissors, Scissors beats Paper, Paper beats Rock
 • 💣 Bomb beats everything (Only one-time use per player)
 • Bomb vs Bomb = Draw
-• Invalid moves waste your turn
+• Invalid moves waste the round (no points awarded to either player)
 • Type "quit" or "exit" to end the game
 
 Ready? Type your move: rock, paper, scissors or bomb"""
@@ -64,6 +66,8 @@ def execute_tool(name: str, args: dict) -> dict:
         result = resolve_round(**args)
     elif name == "update_game_state":
         result = update_game_state(**args)
+    elif name == "waste_round":
+        result = waste_round(**args)
     else:
         result = {"error": f"Unknown tool: {name}"}
         log.error(f"Unknown tool: {name}")
@@ -168,20 +172,16 @@ class RPSPlusGame:
             "game_state": game_state,
         })
         
-        # Step 3: Handle invalid move (wastes round)
+        # Step 3: Handle invalid move (wastes round - no bot play)
         if not validation["is_valid"]:
             self.log.info(f"Invalid move: {validation['reason']}")
-            bot_move = select_bot_move(state)
-            result = execute_tool("update_game_state", {
+            result = execute_tool("waste_round", {
                 "game_state": game_state,
-                "user_move": "rock",  # Default for invalid
-                "bot_move": bot_move,
-                "round_winner": "bot",  # Bot wins wasted rounds
             })
             new_state = result["updated_game_state"]
-            self.log.round_end(state.current_round, "bot", "invalid", bot_move)
+            self.log.round_end(state.current_round, "wasted", "invalid", "none")
             self._check_game_over(new_state)
-            return new_state, self._format_invalid_move(validation, bot_move, new_state)
+            return new_state, self._format_invalid_move(validation, new_state)
         
         user_move = validation["normalized_move"]
         
@@ -253,13 +253,12 @@ class RPSPlusGame:
     def _format_invalid_move(
         self,
         validation: dict,
-        bot_move: str,
         state: dict,
     ) -> str:
-        """Format invalid move message."""
+        """Format invalid move message (round wasted, no bot play)."""
         lines = [
             f"❌ **Invalid Move!** {validation['reason']}",
-            f"Bot played {self._emoji(bot_move)} {bot_move.upper()} and wins this round.",
+            "Round wasted. No points awarded.",
             "",
             f"**Score:** You {state['user_score']} - {state['bot_score']} Bot",
         ]
@@ -279,7 +278,7 @@ class RPSPlusGame:
         elif state.final_winner == "bot":
             return "🤖 Bot wins the game. Better luck next time!"
         else:
-            return "🤝 **It's a tie!** Well played."
+            return "🤝 **It's a draw!** Well played."
 
     def _emoji(self, move: str) -> str:
         """Get emoji for move."""

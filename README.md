@@ -2,22 +2,29 @@
 
 A deterministic, tool-based game system for a conversational Rock-Paper-Scissors variant with a one-time "bomb" move. Designed with Google ADK.
 
+TLDRs:
+
+- Game state is maintained explicitly as an in-memory object and passed between agent turns and tools. No state is stored in prompts or persisted across sessions.
+- No LLM logic in game rules. No state in prompts. Fully auditable.
+- If the user input is invalid, the round is consumed without selecting a bot move or resolving a winner.
+- The game ends after 3 rounds (draw if scores equal).
+
 ## Architecture
 
-```
-agent.py          ← Orchestrator (stateless)
-    ↓
-tools/            ← Game logic (ADK-compatible)
-    validate_move.py
-    resolve_round.py
-    update_game_state.py
-    ↓
-helpers/          ← Utilities
-    intent_parser.py   (dictionary-based move extraction)
-    bot_move.py        (random move selection)
-    ↓
-game_state.py     ← Dataclass model
-logger.py         ← Optional debug logging
+```mermaid
+flowchart TD
+    A[User Input] --> B[extract_move<br/>(intent parser)]
+    B --> C[validate_move<br/>(tool)]
+
+    C -->|Invalid input| D[update_game_state<br/>(round wasted)]
+    D --> E[Format response to user]
+    E --> F[Next round or game end]
+
+    C -->|Valid input| G[select_bot_move<br/>(helper)]
+    G --> H[resolve_round<br/>(tool)]
+    H --> I[update_game_state<br/>(tool)]
+    I --> J[Format response to user]
+    J --> F
 ```
 
 ## Game State Model
@@ -35,7 +42,7 @@ class GameState:
     final_winner: str | None  # "user", "bot", or "draw"
 ```
 
-State is maintained in memory and passed between tools. It is not stored in model prompts or persisted accross sessions.
+State is maintained in memory and passed between tools. It is not stored in model prompts or persisted across sessions.
 
 ## Tool Responsibilities
 
@@ -52,13 +59,13 @@ All game rules live in tools. The LLM/agent never implements logic—only intent
 ```
 User Input → extract_move (dictionary) → validate_move (tool)
                                               ↓
-                                         [invalid?] → bot wins round
-                                              ↓
-                                         select_bot_move (helper)
-                                              ↓
-                                         resolve_round (tool)
-                                              ↓
-                                         update_game_state (tool)
+                                         [invalid?] → round wasted (no score changes)
+                                              ↓                       ↓
+                                         select_bot_move (helper)     ↓
+                                              ↓                       ↓    
+                                         resolve_round (tool)         ↓
+                                              ↓                       ↓
+                                         update_game_state (tool)<- <- 
                                               ↓
                                          Format response → User
 ```
@@ -69,7 +76,7 @@ User Input → extract_move (dictionary) → validate_move (tool)
 # Normal mode
 python agent.py
 
-# Debug mode (verbose logging)
+# Optional Debug mode (logging)
 python agent.py --debug
 ```
 
@@ -77,22 +84,20 @@ python agent.py --debug
 
 | Decision | Tradeoff |
 |----------|----------|
-| **Dictionary-based helper for intent parsing** | Fast, no API calls, but limited to predefined synonyms. May Misses creative esge cases and phrasings. |
-| **All state external** | Fully deterministic and testable, but requires passing state dict on every call. |
+| **Dictionary-based helper for intent parsing** | Fast, no API calls, but limited to predefined synonyms. May Misses creative edge cases and phrasings. |
+| **Explicit in-memory state** | Fully deterministic and testable, but requires passing state on every call. |
 | **Single mutation point** | Easy to audit state changes, but `update_game_state` is a larger function. |
 | **Best-of-3 hardcoded** | Simpler implementation. Would need refactoring for configurable round counts. |
 | **Bot uses random selection** | No strategy = fair for casual play, but predictable opponent behavior. |
-| **--debug mode** | Seperate Verbose logging for debugging and a main mode for cleaner conversational flow. |
+| **Optional --debug mode** | Separate Verbose logging for debugging and a main mode for cleaner conversational flow. |
 ## File Summary
 
 | File | Purpose |
 |------|---------|
 | `game_state.py`| State dataclass + serialization |
-| `agent.py`| Orchestrator + persistence + CLI |
+| `agent.py`| Orchestrator + game loop + CLI |
 | `tools/*.py`| Validation, resolution, state mutation |
 | `helpers/*.py`| Intent parsing, bot moves |
-| `logger.py`| Structured debug logging |
+| `logger.py`| Optional Structured debug logging |
 
 ---
-
-**No LLM logic in game rules. No state in prompts. Fully auditable.**
