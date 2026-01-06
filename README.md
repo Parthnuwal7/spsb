@@ -35,7 +35,7 @@ class GameState:
     final_winner: str | None  # "user", "bot", or "draw"
 ```
 
-State is **JSON-serializable** and passed in/out of every function. No state lives in memory.
+State is maintained in memory and passed between tools. It is not stored in model prompts or persisted accross sessions.
 
 ## Tool Responsibilities
 
