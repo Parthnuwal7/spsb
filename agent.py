@@ -286,51 +286,30 @@ class RPSPlusGame:
         return {"rock": "🪨", "paper": "📄", "scissors": "✂️", "bomb": "💣"}.get(move, "❓")
 
 
-# =============================================================================
-# PERSISTENCE INTERFACE
+# STORAGE (in-memory)
 # =============================================================================
 
 class GameStateStore:
     """
-    Interface for game state persistence.
+    In-memory game state storage.
     
-    Implement this with your preferred storage (file, Redis, DB, etc.)
+    State is lost on restart — suitable for single-session CLI usage.
     """
     
-    def __init__(self, storage_path: str = "game_states.json"):
-        self.storage_path = storage_path
-        self._ensure_file()
-    
-    def _ensure_file(self):
-        try:
-            with open(self.storage_path, "r") as f:
-                json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            with open(self.storage_path, "w") as f:
-                json.dump({}, f)
+    def __init__(self):
+        self._data: dict[str, dict] = {}
     
     def save(self, session_id: str, state: dict) -> None:
         """Save game state for a session."""
-        data = self._load_all()
-        data[session_id] = state
-        with open(self.storage_path, "w") as f:
-            json.dump(data, f, indent=2)
+        self._data[session_id] = state
     
     def load(self, session_id: str) -> dict | None:
         """Load game state for a session."""
-        data = self._load_all()
-        return data.get(session_id)
+        return self._data.get(session_id)
     
     def delete(self, session_id: str) -> None:
         """Delete game state for a session."""
-        data = self._load_all()
-        data.pop(session_id, None)
-        with open(self.storage_path, "w") as f:
-            json.dump(data, f, indent=2)
-    
-    def _load_all(self) -> dict:
-        with open(self.storage_path, "r") as f:
-            return json.load(f)
+        self._data.pop(session_id, None)
 
 
 # =============================================================================
