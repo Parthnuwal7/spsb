@@ -8,6 +8,7 @@ TLDRs:
 - No LLM logic in game rules. No state in prompts. Fully auditable.
 - If the user input is invalid, the round is consumed without selecting a bot move or resolving a winner.
 - The game ends after 3 rounds (draw if scores equal).
+- If a user plays two invalid moves and plays bomb in the end, the user will eliminate chances of loosing. It can either be a win or a draw.
 
 ## Architecture
 
@@ -89,7 +90,9 @@ python agent.py --debug
 | **Single mutation point** | Easy to audit state changes, but `update_game_state` is a larger function. |
 | **Best-of-3 hardcoded** | Simpler implementation. Would need refactoring for configurable round counts. |
 | **Bot uses random selection** | No strategy = fair for casual play, but predictable opponent behavior. |
+| **Invalid rounds** | If a user plays two invalid moves and plays bomb in the end, the user will eliminate chances of loosing. It can either be a win or a draw. If changes to account for bots' move as well (if bot plays valid action against invalid, resulting in bot's win, will eliminate this case and make it more equitable|
 | **Optional --debug mode** | Separate Verbose logging for debugging and a main mode for cleaner conversational flow. |
+
 ## File Summary
 
 | File | Purpose |
