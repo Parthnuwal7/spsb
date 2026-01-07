@@ -8,7 +8,7 @@ TLDRs:
 - No LLM logic in game rules. No state in prompts. Fully auditable.
 - If the user input is invalid, the round is consumed without selecting a bot move or resolving a winner.
 - The game ends after 3 rounds (draw if scores equal).
-- If a user plays two invalid moves and plays bomb in the end, the user will eliminate chances of loosing. It can either be a win or a draw.
+- If a user plays two invalid moves and plays bomb in the end, the user will eliminate chances of losing. It can either be a win or a draw.
 
 ## Architecture
 
@@ -51,7 +51,7 @@ State is maintained in memory and passed between tools. It is not stored in mode
 |------|-------|--------|----------------|
 | `validate_move` | move, player, state | `{is_valid, normalized_move, reason}` | No |
 | `resolve_round` | user_move, bot_move, state | `{winner, explanation}` | No |
-| `update_game_state` | state, moves, winner | `{updated_game_state}` | **Yes** (only source) |
+| `update_game_state` | state, moves, winner, reason | `{updated_game_state}` | **Yes** (only source) |
 
 All game rules live in tools. The LLM/agent never implements logic—only intent extraction and response formatting.
 
@@ -85,12 +85,12 @@ python agent.py --debug
 
 | Decision | Tradeoff |
 |----------|----------|
-| **Dictionary-based helper for intent parsing** | Fast, no API calls, but limited to predefined synonyms. May Misses creative edge cases and phrasings. |
+| **Dictionary-based helper for intent parsing** | Fast, no API calls, but limited to predefined synonyms. May miss creative edge cases and phrasings. |
 | **Explicit in-memory state** | Fully deterministic and testable, but requires passing state on every call. |
 | **Single mutation point** | Easy to audit state changes, but `update_game_state` is a larger function. |
 | **Best-of-3 hardcoded** | Simpler implementation. Would need refactoring for configurable round counts. |
 | **Bot uses random selection** | No strategy = fair for casual play, but predictable opponent behavior. |
-| **Invalid rounds** | If a user plays two invalid moves and plays bomb in the end, the user will eliminate chances of loosing. It can either be a win or a draw. If changes to account for bots' move as well (if bot plays valid action against invalid, resulting in bot's win, will eliminate this case and make it more equitable|
+| **Invalid rounds** | If a user plays two invalid moves and plays bomb in the end, the user will eliminate chances of losing. It can either be a win or a draw. If changes to account for bots' move as well (if bot plays valid action against invalid, resulting in bot's win), will eliminate this case and make it more equitable. |
 | **Optional --debug mode** | Separate Verbose logging for debugging and a main mode for cleaner conversational flow. |
 
 ## File Summary

@@ -3,7 +3,6 @@
 from .validate_move import validate_move, ValidateMoveOutput, TOOL_SCHEMA as VALIDATE_MOVE_SCHEMA
 from .resolve_round import resolve_round, ResolveRoundOutput, TOOL_SCHEMA as RESOLVE_ROUND_SCHEMA
 from .update_game_state import update_game_state, UpdateGameStateOutput, TOOL_SCHEMA as UPDATE_GAME_STATE_SCHEMA
-from .waste_round import waste_round, WasteRoundOutput, TOOL_SCHEMA as WASTE_ROUND_SCHEMA
 
 __all__ = [
     "validate_move",
@@ -15,8 +14,6 @@ __all__ = [
     "update_game_state",
     "UpdateGameStateOutput",
     "UPDATE_GAME_STATE_SCHEMA",
-    "waste_round",
-    "WasteRoundOutput",
-    "WASTE_ROUND_SCHEMA",
 ]
+
 

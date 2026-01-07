@@ -15,7 +15,6 @@ from game_state import GameState, create_new_game
 from tools.validate_move import validate_move, TOOL_SCHEMA as VALIDATE_SCHEMA
 from tools.resolve_round import resolve_round, TOOL_SCHEMA as RESOLVE_SCHEMA
 from tools.update_game_state import update_game_state, TOOL_SCHEMA as UPDATE_SCHEMA
-from tools.waste_round import waste_round, TOOL_SCHEMA as WASTE_ROUND_SCHEMA
 from helpers.bot_move import select_bot_move
 from helpers.intent_parser import extract_move_offline, is_rules_request
 from logger import get_logger, GameLogger, LogLevel
@@ -29,7 +28,6 @@ ADK_TOOL_SCHEMAS = [
     VALIDATE_SCHEMA,
     RESOLVE_SCHEMA,
     UPDATE_SCHEMA,
-    WASTE_ROUND_SCHEMA,
 ]
 
 
@@ -66,8 +64,6 @@ def execute_tool(name: str, args: dict) -> dict:
         result = resolve_round(**args)
     elif name == "update_game_state":
         result = update_game_state(**args)
-    elif name == "waste_round":
-        result = waste_round(**args)
     else:
         result = {"error": f"Unknown tool: {name}"}
         log.error(f"Unknown tool: {name}")
@@ -175,8 +171,9 @@ class RPSPlusGame:
         # Step 3: Handle invalid move (wastes round - no bot play)
         if not validation["is_valid"]:
             self.log.info(f"Invalid move: {validation['reason']}")
-            result = execute_tool("waste_round", {
+            result = execute_tool("update_game_state", {
                 "game_state": game_state,
+                "reason": "invalid",
             })
             new_state = result["updated_game_state"]
             self.log.round_end(state.current_round, "wasted", "invalid", "none")

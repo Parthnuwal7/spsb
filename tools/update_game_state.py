@@ -5,7 +5,7 @@ Google ADK-compatible tool for mutating game state after a round.
 This is the ONLY place where state mutation occurs.
 """
 
-from typing import TypedDict
+from typing import TypedDict, Optional, Literal
 import sys
 import os
 
@@ -21,9 +21,10 @@ class UpdateGameStateOutput(TypedDict):
 
 def update_game_state(
     game_state: GameState | dict,
-    user_move: Move,
-    bot_move: Move,
-    round_winner: Player,
+    user_move: Optional[Move] = None,
+    bot_move: Optional[Move] = None,
+    round_winner: Optional[Player] = None,
+    reason: Optional[Literal["normal", "invalid"]] = "normal",
 ) -> UpdateGameStateOutput:
     """
     Apply round results to game state.
@@ -32,9 +33,10 @@ def update_game_state(
 
     Args:
         game_state: Current game state.
-        user_move: The user's validated move for this round.
-        bot_move: The bot's validated move for this round.
-        round_winner: Result from resolve_round ("user", "bot", or "draw").
+        user_move: The user's validated move (None for invalid/wasted rounds).
+        bot_move: The bot's move (None for wasted rounds).
+        round_winner: Result from resolve_round (None for wasted rounds).
+        reason: "normal" for regular rounds, "invalid" for wasted rounds.
 
     Returns:
         UpdateGameStateOutput containing the updated game state as dict.
@@ -45,6 +47,15 @@ def update_game_state(
     else:
         state = game_state
 
+    # Handle wasted round (invalid move)
+    if reason == "invalid":
+        # No history entry, no score changes, just advance round
+        _advance_round(state)
+        return UpdateGameStateOutput(
+            updated_game_state=state.to_dict(),
+        )
+
+    # Normal round processing
     # Record round in history
     round_result = RoundResult(
         round_number=state.current_round,
@@ -67,6 +78,20 @@ def update_game_state(
     if bot_move == "bomb":
         state.bot_bomb_used = True
 
+    # Advance round (handles game over checks)
+    _advance_round(state)
+
+    return UpdateGameStateOutput(
+        updated_game_state=state.to_dict(),
+    )
+
+
+def _advance_round(state: GameState) -> None:
+    """
+    Internal helper to advance round counter and check for game over.
+    
+    Modifies state in place.
+    """
     # Check for game over (best of 3 = first to 2 wins, or all 3 rounds played)
     if state.user_score >= 2:
         state.game_over = True
@@ -88,15 +113,11 @@ def update_game_state(
     if not state.game_over:
         state.current_round += 1
 
-    return UpdateGameStateOutput(
-        updated_game_state=state.to_dict(),
-    )
-
 
 # ADK Tool Schema
 TOOL_SCHEMA = {
     "name": "update_game_state",
-    "description": "Applies round results to the game state. Updates scores, tracks bomb usage, records history, and checks for game completion.",
+    "description": "Applies round results to the game state. Updates scores, tracks bomb usage, records history, and checks for game completion. Use reason='invalid' for wasted rounds.",
     "parameters": {
         "type": "object",
         "properties": {
@@ -107,19 +128,26 @@ TOOL_SCHEMA = {
             "user_move": {
                 "type": "string",
                 "enum": ["rock", "paper", "scissors", "bomb"],
-                "description": "The user's validated move.",
+                "description": "The user's validated move. Omit for wasted rounds.",
             },
             "bot_move": {
                 "type": "string",
                 "enum": ["rock", "paper", "scissors", "bomb"],
-                "description": "The bot's validated move.",
+                "description": "The bot's move. Omit for wasted rounds.",
             },
             "round_winner": {
                 "type": "string",
                 "enum": ["user", "bot", "draw"],
-                "description": "The winner of this round.",
+                "description": "The winner of this round. Omit for wasted rounds.",
+            },
+            "reason": {
+                "type": "string",
+                "enum": ["normal", "invalid"],
+                "description": "Use 'invalid' for wasted rounds due to invalid user input.",
+                "default": "normal",
             },
         },
-        "required": ["game_state", "user_move", "bot_move", "round_winner"],
+        "required": ["game_state"],
     },
 }
+
